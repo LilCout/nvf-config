@@ -19,8 +19,27 @@ in
         setupOpts = {
           winbar.lualine_b = [fileName];
           inactive_winbar.lualine_b = [fileName];
-          options.disabled_filetypes.winbar = ["snacks_dashboard" "snacks_picker_list" "snacks_picker_input" "snacks_layout_box" "toggleterm" "trouble" "help" "qf"];
+          options.disabled_filetypes.winbar = ["snacks_dashboard" "snacks_picker_list" "snacks_picker_input" "snacks_layout_box" "snacks_terminal" "trouble" "help" "qf"];
         };
+        # As in LazyVim: noice hides Neovim's mode messages, so without these "recording @q" was shown nowhere. They
+        # show the macro being recorded and the keys of a command still being typed (e.g. 2d).
+        # Same priority as nvf's own components (mkOptionDefault), so the lists merge; mkAfter puts these at the end
+        setupOpts.sections.lualine_x = lib.mkOptionDefault (lib.mkAfter [
+          (lib.generators.mkLuaInline ''
+            {
+              function() return require("noice").api.status.command.get() end,
+              cond = function() return package.loaded["noice"] and require("noice").api.status.command.has() end,
+              color = "Statement",
+            }
+          '')
+          (lib.generators.mkLuaInline ''
+            {
+              function() return require("noice").api.status.mode.get() end,
+              cond = function() return package.loaded["noice"] and require("noice").api.status.mode.has() end,
+              color = "Constant",
+            }
+          '')
+        ]);
       };
       tabline.nvimBufferline.enable = true;
       visuals = {
@@ -67,6 +86,19 @@ in
         (cmd "<leader>sna" "Noice all" "Noice all")
         (cmd "<leader>snd" "Dismiss all" "Noice dismiss")
         (cmd "<leader>snt" "Noice picker" "Noice snacks")
+        # Scroll hover and signature popups; the keys keep their usual meaning when there is none
+        ((lua "<c-f>" "Scroll forward" "function() if not require('noice.lsp').scroll(4) then return '<c-f>' end end")
+          // {
+            mode = ["i" "n" "s"];
+            expr = true;
+          })
+        ((lua "<c-b>" "Scroll backward" "function() if not require('noice.lsp').scroll(-4) then return '<c-b>' end end")
+          // {
+            mode = ["i" "n" "s"];
+            expr = true;
+          })
+        # Shows the output of the command being typed in a popup
+        ((lua "<S-Enter>" "Redirect cmdline" "function() require('noice').redirect(vim.fn.getcmdline()) end") // {mode = "c";})
 
         # Todo comments
         (picker "<leader>st" "Todo" "todo_comments" "")
