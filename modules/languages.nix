@@ -17,13 +17,38 @@ in
         cargo
       ];
 
+      # LazyVim's diagnostics: the message at the end of the line (Neovim shows none by default since 0.11), most severe
+      # first, and icons in the sign column
+      diagnostics = {
+        enable = true;
+        config = {
+          underline = true;
+          update_in_insert = false;
+          virtual_text = {
+            spacing = 4;
+            source = "if_many";
+            prefix = "●";
+          };
+          severity_sort = true;
+          signs.text = lib.generators.mkLuaInline ''
+            {
+              [vim.diagnostic.severity.ERROR] = " ",
+              [vim.diagnostic.severity.WARN] = " ",
+              [vim.diagnostic.severity.HINT] = " ",
+              [vim.diagnostic.severity.INFO] = " ",
+            }
+          '';
+        };
+      };
+
       lsp = {
         enable = true;
         formatOnSave = false; # format by hand with <leader>cf; <leader>uf turns on-save formatting on for the session
         lightbulb.enable = true;
+        inlayHints.enable = true; # types and parameter names inline, as in LazyVim; <leader>uh toggles them per buffer
 
         # nvf's <leader>l… LSP keys moved to LazyVim's <leader>c… ones; null where Neovim's or LazyVim's own key covers it
-        # (gd/gD/gI/gy below, grr references, K hover, ]d/[d diagnostics, <leader>ss/sS symbols in navigation.nix)
+        # (gd/gD/gr/gI/gy below, K hover, ]d/[d diagnostics, <leader>ss/sS symbols in navigation.nix)
         mappings = {
           codeAction = "<leader>ca";
           renameSymbol = "<leader>cr";
@@ -256,6 +281,15 @@ in
           desc = "Go to declaration";
           lua = true;
           action = "function() if next(vim.lsp.get_clients({ bufnr = 0, method = 'textDocument/declaration' })) then vim.lsp.buf.declaration() else vim.cmd('normal! gD') end end";
+        }
+        # Replaces Neovim's gr* prefix (grn, gra, gri, …), as in LazyVim; those are <leader>cr, <leader>ca, gI
+        {
+          key = "gr";
+          mode = "n";
+          desc = "References";
+          nowait = true;
+          lua = true;
+          action = "function() Snacks.picker.lsp_references() end";
         }
         {
           key = "gI";
