@@ -17,22 +17,18 @@ in
 
       binds.whichKey.enable = true;
 
-      # ]b/[b and <S-h>/<S-l> switch buffers, so nvf's <leader>bn/bp go (<leader>bp is LazyVim's pin)
-      tabline.nvimBufferline.mappings = {
-        cycleNext = null;
-        cyclePrevious = null;
-        pick = "<leader>bj";
-        moveNext = "]B";
-        movePrevious = "[B";
-      };
-
-      # Sessions (windows and buffers per directory), saved automatically on exit; LazyVim's <leader>q… keys
-      session.persisted = {
-        enable = true;
-        mappings = {
-          load = "<leader>qs"; # restore this directory's session
-          select = "<leader>qS";
-        };
+      # Sessions (windows and buffers per directory, with persistence.nvim as in LazyVim), saved automatically on exit
+      lazy.plugins."persistence.nvim" = {
+        package = pkgs.vimPlugins.persistence-nvim;
+        setupModule = "persistence";
+        setupOpts = {};
+        event = ["BufReadPre"];
+        keys = [
+          (lua "<leader>qs" "Restore session" "function() require('persistence').load() end")
+          (lua "<leader>qS" "Select session" "function() require('persistence').select() end")
+          (lua "<leader>ql" "Restore last session" "function() require('persistence').load({ last = true }) end")
+          (lua "<leader>qd" "Don't save current session" "function() require('persistence').stop() end")
+        ];
       };
       # LazyVim's: without "blank", the explorer's window isn't saved (it came back as an empty [No Name] window),
       # nor terminals (they came back dead); "globals" keeps SessionExplorer, set below
@@ -40,7 +36,7 @@ in
       autocmds = [
         {
           event = ["User"];
-          pattern = ["PersistedSavePre"];
+          pattern = ["PersistenceSavePre"];
           desc = "Remember whether the explorer was open";
           callback = lib.generators.mkLuaInline ''
             function()
@@ -50,7 +46,7 @@ in
         }
         {
           event = ["User"];
-          pattern = ["PersistedLoadPost"];
+          pattern = ["PersistenceLoadPost"];
           desc = "Reopen the explorer if it was open";
           callback = lib.generators.mkLuaInline ''
             function()
@@ -116,22 +112,27 @@ in
           (cmd "<S-l>" "Next buffer" "BufferLineCycleNext")
           (cmd "<leader>bb" "Switch to other buffer" "e #")
           (cmd "<leader>`" "Switch to other buffer" "e #")
-          (lua "<leader>bd" "Delete buffer (keep window)" "function() require('bufdelete').bufdelete(0, false) end")
+          (lua "<leader>bd" "Delete buffer" "function() Snacks.bufdelete() end")
           (cmd "<leader>bD" "Delete buffer and window" "bd")
-          (lua "<leader>bi" "Delete buffers not in a window" ''
+          (lua "<leader>bi" "Delete invisible buffers" ''
             function()
               for _, buf in ipairs(vim.api.nvim_list_bufs()) do
                 if vim.bo[buf].buflisted and #vim.fn.win_findbuf(buf) == 0 then
-                  require("bufdelete").bufdelete(buf, false)
+                  Snacks.bufdelete(buf)
                 end
               end
             end
           '')
-          (cmd "<leader>bo" "Delete other buffers" "BufferLineCloseOthers")
+          (lua "<leader>bo" "Delete other buffers" "function() Snacks.bufdelete.other() end")
           (cmd "<leader>bl" "Delete buffers to the left" "BufferLineCloseLeft")
           (cmd "<leader>br" "Delete buffers to the right" "BufferLineCloseRight")
           (cmd "<leader>bp" "Toggle pin" "BufferLineTogglePin")
           (cmd "<leader>bP" "Delete non-pinned buffers" "BufferLineGroupClose ungrouped")
+          (cmd "[b" "Previous buffer" "BufferLineCyclePrev")
+          (cmd "]b" "Next buffer" "BufferLineCycleNext")
+          (cmd "[B" "Move buffer prev" "BufferLineMovePrev")
+          (cmd "]B" "Move buffer next" "BufferLineMoveNext")
+          (cmd "<leader>bj" "Pick buffer" "BufferLinePick")
 
           # Windows
           (cmd "<C-h>" "Go to left window" "wincmd h")
@@ -146,8 +147,6 @@ in
           (cmd "<leader>|" "Split window right" "vsplit")
           (cmd "<leader>wd" "Delete window" "close")
           (cmd "<leader>qq" "Quit all" "qa")
-          (lua "<leader>ql" "Restore last session" "function() require('persisted').load({ last = true }) end")
-          (lua "<leader>qd" "Don't save current session" "function() require('persisted').stop() end")
 
           # Tabs
           (cmd "<leader><tab><tab>" "New tab" "tabnew")

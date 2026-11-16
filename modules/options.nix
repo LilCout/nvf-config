@@ -54,7 +54,23 @@ in {
       fillchars = "foldopen:,foldclose:,fold: ,foldsep: ,diff:╱,eob: ";
       # Neovim's default plus W (no "written"), I (no intro), c and C (no completion messages)
       shortmess = "ltToOCFWIcC";
+      completeopt = "menu,menuone,noselect";
+      inccommand = "nosplit"; # preview :s in the buffer
+      pumblend = 10; # slightly transparent popup menus
+      ruler = false; # the statusline shows the position
+      spelllang = "en";
+      # The sign column (diagnostics, git signs, folds) is Snacks' statuscolumn (snacks.nix)
+      signcolumn = "yes";
+      number = true;
+      relativenumber = true;
+      splitbelow = true;
+      splitright = true;
     };
+    globals = {
+      maplocalleader = "\\";
+      markdown_recommended_style = 0; # Neovim's Markdown ftplugin would force 4-space indents
+    };
+    preventJunkFiles = false; # LazyVim keeps Neovim's swap files
     undoFile.enable = true; # undo history survives closing the file (~/.local/state/nvf/undo)
     searchCase = "smart"; # case-insensitive unless the search has a capital
     clipboard = {

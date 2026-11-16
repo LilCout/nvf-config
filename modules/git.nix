@@ -2,7 +2,11 @@
 let
   inherit (import ../lib/keys.nix) cmd lua picker;
 in
-  {pkgs, ...}: {
+  {
+    lib,
+    pkgs,
+    ...
+  }: {
     vim = {
       # On PATH so <leader>gg/gG (lazygit) and <leader>gj (jjui) work from `nix run` too, without the NixOS config's packages
       extraPackages = [pkgs.lazygit pkgs.jjui];
@@ -12,21 +16,66 @@ in
         gitsigns = {
           enable = true;
           codeActions.enable = false; # prints debug messages
-          # nvf's <leader>h… keys moved to LazyVim's <leader>gh… and ]h/[h
+          # LazyVim's signs (thin bars) and keys, set per buffer when gitsigns attaches; nvf's own keys are off
           mappings = {
-            nextHunk = "]h";
-            previousHunk = "[h";
-            stageHunk = "<leader>ghs";
-            undoStageHunk = "<leader>ghu";
-            resetHunk = "<leader>ghr";
-            stageBuffer = "<leader>ghS";
-            resetBuffer = "<leader>ghR";
-            previewHunk = "<leader>ghp";
-            blameLine = "<leader>ghb";
-            diffThis = "<leader>ghd";
-            toggleBlame = "<leader>uB";
+            nextHunk = null;
+            previousHunk = null;
+            stageHunk = null;
+            undoStageHunk = null;
+            resetHunk = null;
+            stageBuffer = null;
+            resetBuffer = null;
+            previewHunk = null;
+            blameLine = null;
+            diffThis = null;
+            toggleBlame = null;
             toggleDeleted = null;
             diffProject = null;
+          };
+          setupOpts = {
+            signs = {
+              add.text = "▎";
+              change.text = "▎";
+              delete.text = "";
+              topdelete.text = "";
+              changedelete.text = "▎";
+              untracked.text = "▎";
+            };
+            signs_staged = {
+              add.text = "▎";
+              change.text = "▎";
+              delete.text = "";
+              topdelete.text = "";
+              changedelete.text = "▎";
+            };
+            on_attach = lib.generators.mkLuaInline ''
+              function(buffer)
+                local gs = package.loaded.gitsigns
+                local function map(mode, l, r, desc)
+                  vim.keymap.set(mode, l, r, { buffer = buffer, desc = desc, silent = true })
+                end
+                map("n", "]h", function()
+                  if vim.wo.diff then vim.cmd.normal({ "]c", bang = true }) else gs.nav_hunk("next") end
+                end, "Next Hunk")
+                map("n", "[h", function()
+                  if vim.wo.diff then vim.cmd.normal({ "[c", bang = true }) else gs.nav_hunk("prev") end
+                end, "Prev Hunk")
+                map("n", "]H", function() gs.nav_hunk("last") end, "Last Hunk")
+                map("n", "[H", function() gs.nav_hunk("first") end, "First Hunk")
+                map({ "n", "x" }, "<leader>ghs", ":Gitsigns stage_hunk<CR>", "Stage Hunk")
+                map({ "n", "x" }, "<leader>ghr", ":Gitsigns reset_hunk<CR>", "Reset Hunk")
+                map("n", "<leader>ghS", gs.stage_buffer, "Stage Buffer")
+                map("n", "<leader>ghu", gs.undo_stage_hunk, "Undo Stage Hunk")
+                map("n", "<leader>ghR", gs.reset_buffer, "Reset Buffer")
+                map("n", "<leader>ghp", gs.preview_hunk_inline, "Preview Hunk Inline")
+                map("n", "<leader>ghb", function() gs.blame_line({ full = true }) end, "Blame Line")
+                map("n", "<leader>ghB", function() gs.blame() end, "Blame Buffer")
+                map("n", "<leader>ghd", gs.diffthis, "Diff This")
+                map("n", "<leader>ghD", function() gs.diffthis("~") end, "Diff This ~")
+                map({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", "GitSigns Select Hunk")
+                map("n", "<leader>uB", gs.toggle_current_line_blame, "Toggle line blame")
+              end
+            '';
           };
         };
         # Conflict choices off <leader>c… (LazyVim's code group); nvf's defaults also had ]x/[x swapped
@@ -58,18 +107,7 @@ in
         (picker "<leader>gP" "GitHub pull requests (all)" "gh_pr" "{ state = 'all' }")
         (cmd "<leader>gv" "Diffview" "DiffviewOpen")
 
-        (lua "<leader>gb" "Git blame line" "function() require('gitsigns').blame_line({ full = true }) end")
-        (cmd "<leader>ghB" "Blame buffer" "Gitsigns blame")
-        (lua "<leader>ghD" "Diff this ~" "function() require('gitsigns').diffthis('~') end")
-        (lua "]H" "Last hunk" "function() require('gitsigns').nav_hunk('last') end")
-        (lua "[H" "First hunk" "function() require('gitsigns').nav_hunk('first') end")
-        # Hunk text object, as in LazyVim: dih, vih, yih
-        {
-          key = "ih";
-          mode = ["o" "x"];
-          desc = "Select hunk";
-          action = ":<C-U>Gitsigns select_hunk<CR>";
-        }
+        (picker "<leader>gb" "Git blame line" "git_log_line" "")
 
         # Lazygit through Snacks, as in LazyVim: it gets the colorscheme's colors, and `e` on a file opens it in this
         # Neovim instead of a second one inside the float. At the repo root, or at Neovim's current directory.

@@ -44,8 +44,7 @@ in
       lsp = {
         enable = true;
         formatOnSave = false; # format by hand with <leader>cf; <leader>uf turns on-save formatting on for the session
-        lightbulb.enable = true;
-        inlayHints.enable = true; # types and parameter names inline, as in LazyVim; <leader>uh toggles them per buffer
+        inlayHints.enable = true; # types and parameter names inline; <leader>uh toggles them (ui.nix)
 
         # nvf's <leader>l… LSP keys moved to LazyVim's <leader>c… ones; null where Neovim's or LazyVim's own key covers it
         # (gd/gD/gr/gI/gy below, K hover, ]d/[d diagnostics, <leader>ss/sS symbols in navigation.nix)
@@ -74,11 +73,13 @@ in
 
         trouble = {
           enable = true;
+          # LSP results (definitions, references, …) open on the right
+          setupOpts.modes.lsp.win.position = "right";
           mappings = {
             workspaceDiagnostics = "<leader>xx";
             documentDiagnostics = "<leader>xX";
             symbols = "<leader>cs";
-            lspReferences = "<leader>cS";
+            lspReferences = null; # <leader>cS below, Trouble's combined LSP view
             locList = "<leader>xL";
             quickfix = "<leader>xQ";
           };
@@ -110,7 +111,21 @@ in
         };
         markdown = {
           enable = true;
-          extensions.render-markdown-nvim.enable = true; # headings, lists, tables and code blocks rendered in the buffer
+          extensions.render-markdown-nvim = {
+            enable = true; # headings, lists, tables and code blocks rendered in the buffer; <leader>um toggles
+            setupOpts = {
+              code = {
+                sign = false;
+                width = "block";
+                right_pad = 1;
+              };
+              heading = {
+                sign = false;
+                icons = [];
+              };
+              checkbox.enabled = false;
+            };
+          };
         };
         python = {
           enable = true;
@@ -136,6 +151,22 @@ in
       };
 
       lsp.servers = {
+        # LazyVim's lua_ls settings: inlay hints for parameter types (not names), call snippets, no third-party prompts
+        lua-language-server.settings.Lua = {
+          workspace.checkThirdParty = false;
+          codeLens.enable = true;
+          completion.callSnippet = "Replace";
+          doc.privateName = ["^_"];
+          hint = {
+            enable = true;
+            setType = false;
+            paramType = true;
+            paramName = "Disable";
+            semicolon = "Disable";
+            arrayIndex = "Disable";
+          };
+        };
+
         # The NixOS config adds its own option completion (NixOS, Home Manager, flake-parts) through mkNeovim's `modules`.
         # Store path, so formatting also works from `nix run` without alejandra on PATH.
         nixd.settings.nixd.formatting.command = [(lib.getExe pkgs.alejandra)];
@@ -165,7 +196,6 @@ in
       };
 
       treesitter = {
-        context.enable = true;
         # Git files (commit messages, rebase todo, config, ignore), which no language module covers
         grammars = with pkgs.vimPlugins.nvim-treesitter.grammarPlugins; [
           gitcommit
@@ -199,6 +229,19 @@ in
           stepBack = null;
         };
       };
+      # LazyVim's debugger look: its breakpoint and stopped-line icons, the stopped line highlighted, and variable values
+      # shown inline while debugging (nvim-dap-virtual-text)
+      extraPlugins.nvim-dap-virtual-text = {
+        package = pkgs.vimPlugins.nvim-dap-virtual-text;
+        setup = ''
+          require("nvim-dap-virtual-text").setup({})
+          vim.api.nvim_set_hl(0, "DapStoppedLine", { default = true, link = "Visual" })
+          for name, sign in pairs(LazyVimIcons.dap) do
+            sign = type(sign) == "table" and sign or { sign }
+            vim.fn.sign_define("Dap" .. name, { text = sign[1], texthl = sign[2] or "DiagnosticInfo", linehl = sign[3], numhl = sign[3] })
+          end
+        '';
+      };
 
       # Loads devenv/direnv environments, so project LSPs and tools are found
       utility.direnv.enable = true;
@@ -230,13 +273,16 @@ in
 
       keymaps = [
         # Code
-        (cmd "<leader>cl" "LSP info" "checkhealth vim.lsp")
+        # nvf maps <leader>ca in normal mode only; LazyVim also runs it on a selection
+        ((lua "<leader>ca" "Code action" "vim.lsp.buf.code_action") // {mode = "x";})
+        (lua "<leader>cl" "LSP info" "function() Snacks.picker.lsp_config() end")
+        (cmd "<leader>cS" "LSP references/definitions/... (Trouble)" "Trouble lsp toggle")
         ((lua "<leader>cc" "Run codelens" "vim.lsp.codelens.run") // {mode = ["n" "x"];})
         (lua "<leader>cC" "Refresh & display codelens" "function() vim.lsp.codelens.enable(true, { bufnr = 0 }) end")
         (lua "<leader>cA" "Source action" "function() vim.lsp.buf.code_action({ context = { only = { 'source' }, diagnostics = {} } }) end")
         (lua "<leader>co" "Organize imports" "function() vim.lsp.buf.code_action({ context = { only = { 'source.organizeImports' }, diagnostics = {} }, apply = true }) end")
-        (lua "gai" "Calls incoming" "vim.lsp.buf.incoming_calls")
-        (lua "gao" "Calls outgoing" "vim.lsp.buf.outgoing_calls")
+        (lua "gai" "Calls incoming" "function() Snacks.picker.lsp_incoming_calls() end")
+        (lua "gao" "Calls outgoing" "function() Snacks.picker.lsp_outgoing_calls() end")
         {
           key = "<C-k>";
           mode = "i";
@@ -244,36 +290,54 @@ in
           lua = true;
           action = "vim.lsp.buf.signature_help";
         }
-        # Next/previous use of the word under the cursor (vim-illuminate)
-        (lua "]]" "Next reference" "function() require('illuminate').goto_next_reference(false) end")
-        (lua "[[" "Previous reference" "function() require('illuminate').goto_prev_reference(false) end")
-        (lua "<A-n>" "Next reference" "function() require('illuminate').goto_next_reference(false) end")
-        (lua "<A-p>" "Previous reference" "function() require('illuminate').goto_prev_reference(false) end")
+        # Next/previous use of the word under the cursor (Snacks words)
+        (lua "]]" "Next reference" "function() Snacks.words.jump(vim.v.count1) end")
+        (lua "[[" "Previous reference" "function() Snacks.words.jump(-vim.v.count1) end")
+        (lua "<A-n>" "Next reference" "function() Snacks.words.jump(vim.v.count1, true) end")
+        (lua "<A-p>" "Previous reference" "function() Snacks.words.jump(-vim.v.count1, true) end")
 
         # Diagnostics (]d/[d are Neovim's own)
         (lua "]e" "Next error" (diagnosticJump 1 "vim.diagnostic.severity.ERROR"))
         (lua "[e" "Previous error" (diagnosticJump (-1) "vim.diagnostic.severity.ERROR"))
         (lua "]w" "Next warning" (diagnosticJump 1 "vim.diagnostic.severity.WARN"))
         (lua "[w" "Previous warning" (diagnosticJump (-1) "vim.diagnostic.severity.WARN"))
-        (cmd "<leader>xl" "Location list" "lopen")
-        (cmd "<leader>xq" "Quickfix list" "copen")
-        (lua "<leader>ud" "Toggle diagnostics" "function() vim.diagnostic.enable(not vim.diagnostic.is_enabled()) end")
-        (lua "<leader>uh" "Toggle inlay hints" "function() vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = 0 }), { bufnr = 0 }) end")
+        # Open or close the location/quickfix list
+        (lua "<leader>xl" "Location list" "function() local ok, err = pcall(vim.fn.getloclist(0, { winid = 0 }).winid ~= 0 and vim.cmd.lclose or vim.cmd.lopen) if not ok and err then vim.notify(err, vim.log.levels.ERROR) end end")
+        (lua "<leader>xq" "Quickfix list" "function() local ok, err = pcall(vim.fn.getqflist({ winid = 0 }).winid ~= 0 and vim.cmd.cclose or vim.cmd.copen) if not ok and err then vim.notify(err, vim.log.levels.ERROR) end end")
+        # Previous/next item in Trouble when it's open, else in the quickfix list
+        (lua "[q" "Previous trouble/quickfix item" "function() if require('trouble').is_open() then require('trouble').prev({ skip_groups = true, jump = true }) else local ok, err = pcall(vim.cmd.cprev) if not ok then vim.notify(err, vim.log.levels.ERROR) end end end")
+        (lua "]q" "Next trouble/quickfix item" "function() if require('trouble').is_open() then require('trouble').next({ skip_groups = true, jump = true }) else local ok, err = pcall(vim.cmd.cnext) if not ok then vim.notify(err, vim.log.levels.ERROR) end end end")
 
         # Debugger, the keys nvf has no option for
         (lua "<leader>dB" "Breakpoint condition" "function() require('dap').set_breakpoint(vim.fn.input('Breakpoint condition: ')) end")
+        (lua "<leader>da" "Run with args" ''
+          function()
+            require("dap").continue({
+              before = function(config)
+                local args = type(config.args) == "function" and (config.args() or {}) or config.args or {}
+                local args_str = type(args) == "table" and table.concat(args, " ") or args
+                config = vim.deepcopy(config)
+                config.args = function()
+                  local new_args = vim.fn.expand(vim.fn.input("Run with args: ", args_str))
+                  return require("dap.utils").splitstr(new_args)
+                end
+                return config
+              end,
+            })
+          end
+        '')
         (lua "<leader>dg" "Go to line (no execute)" "function() require('dap').goto_() end")
         (lua "<leader>dP" "Pause" "function() require('dap').pause() end")
         (lua "<leader>ds" "Session" "function() require('dap').session() end")
         ((lua "<leader>de" "Eval" "function() require('dapui').eval() end") // {mode = ["n" "x"];})
 
-        # LazyVim's LSP jumps; gd/gD fall back to Vim's own in buffers without a language server
+        # LazyVim's LSP jumps (Snacks pickers); gd/gD fall back to Vim's own in buffers without a language server
         {
           key = "gd";
           mode = "n";
           desc = "Go to definition";
           lua = true;
-          action = "function() if next(vim.lsp.get_clients({ bufnr = 0, method = 'textDocument/definition' })) then vim.lsp.buf.definition() else vim.cmd('normal! gd') end end";
+          action = "function() if next(vim.lsp.get_clients({ bufnr = 0, method = 'textDocument/definition' })) then Snacks.picker.lsp_definitions() else vim.cmd('normal! gd') end end";
         }
         {
           key = "gD";
@@ -296,14 +360,14 @@ in
           mode = "n";
           desc = "Go to implementation";
           lua = true;
-          action = "vim.lsp.buf.implementation";
+          action = "function() Snacks.picker.lsp_implementations() end";
         }
         {
           key = "gy";
           mode = "n";
           desc = "Go to type definition";
           lua = true;
-          action = "vim.lsp.buf.type_definition";
+          action = "function() Snacks.picker.lsp_type_definitions() end";
         }
       ];
     };
