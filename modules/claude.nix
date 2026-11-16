@@ -1,5 +1,30 @@
 # Claude Code integration (claudecode.nvim), with LazyVim's claudecode keymaps
-{pkgs, ...}: {
+{
+  lib,
+  pkgs,
+  ...
+}: {
+  # claudecode.nvim enters terminal mode when its commands open or focus the panel (auto_insert), but not when the
+  # window is entered another way (window keys, mouse), which left it in normal mode. Its own API tells which buffer is
+  # the panel; before the plugin is loaded there is no panel.
+  vim.autocmds = [
+    {
+      event = ["BufEnter" "WinEnter"];
+      pattern = ["term://*"];
+      desc = "Enter terminal mode in the Claude Code panel";
+      callback = lib.generators.mkLuaInline ''
+        function(event)
+          if not package.loaded["claudecode"] or vim.api.nvim_get_mode().mode:sub(1, 1) ~= "n" then -- "nt" in a terminal
+            return
+          end
+          if event.buf == require("claudecode.terminal").get_active_terminal_bufnr() then
+            vim.cmd("startinsert")
+          end
+        end
+      '';
+    }
+  ];
+
   vim.lazy.plugins."claudecode.nvim" = {
     package = pkgs.vimPlugins.claudecode-nvim;
     setupModule = "claudecode";
