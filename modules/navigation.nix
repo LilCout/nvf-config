@@ -118,6 +118,15 @@ in
           (cmd "<leader>`" "Switch to other buffer" "e #")
           (lua "<leader>bd" "Delete buffer (keep window)" "function() require('bufdelete').bufdelete(0, false) end")
           (cmd "<leader>bD" "Delete buffer and window" "bd")
+          (lua "<leader>bi" "Delete buffers not in a window" ''
+            function()
+              for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+                if vim.bo[buf].buflisted and #vim.fn.win_findbuf(buf) == 0 then
+                  require("bufdelete").bufdelete(buf, false)
+                end
+              end
+            end
+          '')
           (cmd "<leader>bo" "Delete other buffers" "BufferLineCloseOthers")
           (cmd "<leader>bl" "Delete buffers to the left" "BufferLineCloseLeft")
           (cmd "<leader>br" "Delete buffers to the right" "BufferLineCloseRight")

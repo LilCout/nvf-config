@@ -165,7 +165,15 @@ in
             action = "<cmd>noh<cr><esc>";
           }
           (cmd "<leader>ur" "Redraw / clear hlsearch / diff update" "nohlsearch<bar>diffupdate<bar>normal! <C-L>")
-
+          (cmd "<leader>K" "Keywordprg" "norm! K")
+        ]
+        # Undo breakpoints: u undoes up to the last , . or ; typed, not the whole insert
+        ++ map (char: {
+          key = char;
+          mode = "i";
+          action = "${char}<c-g>u";
+        }) ["," "." ";"]
+        ++ [
           # Search and replace across files, prefilled with the selection in visual mode
           (lua "<leader>sr" "Search and replace" "function() require('grug-far').open({ transient = true }) end")
           ((lua "<leader>sr" "Search and replace" "function() require('grug-far').with_visual_selection({ transient = true }) end") // {mode = "x";})

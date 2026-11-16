@@ -38,6 +38,22 @@ in {
       foldexpr = "v:lua.vim.treesitter.foldexpr()";
       foldlevel = 99;
       foldtext = "";
+
+      # More of LazyVim's options
+      showmode = false; # lualine shows the mode
+      list = true; # show tabs, trailing spaces and non-breaking spaces
+      smoothscroll = true; # scroll through long wrapped lines a screen line at a time
+      autowrite = true; # save before :make, :next and similar
+      grepprg = "rg --vimgrep";
+      grepformat = "%f:%l:%c:%m";
+      winminwidth = 5;
+      pumheight = 10; # popup menus show at most 10 entries
+      wildmode = "longest:full,full";
+      formatoptions = "jcroqlnt";
+      # Fold arrows in the fold column, plain fold lines, diagonal fill for deleted diff lines, no ~ after the last line
+      fillchars = "foldopen:,foldclose:,fold: ,foldsep: ,diff:╱,eob: ";
+      # Neovim's default plus W (no "written"), I (no intro), c and C (no completion messages)
+      shortmess = "ltToOCFWIcC";
     };
     undoFile.enable = true; # undo history survives closing the file (~/.local/state/nvf/undo)
     searchCase = "smart"; # case-insensitive unless the search has a capital
