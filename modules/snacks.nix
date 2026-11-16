@@ -82,6 +82,33 @@ in
           };
           bigfile.enabled = true; # plain editing for huge files, without Treesitter and LSP
           quickfile.enabled = true; # draws a file opened from the command line before plugins load
+          # Indent scope: ii/ai select the current indentation block, [i/]i jump to its edges
+          scope.enabled = true;
+          # Terminals (shells, lazygit, jjui, Claude Code's panel), with LazyVim's keys: <C-h/j/k/l> move to the window in
+          # that direction (a floating terminal gets the key itself), <C-/> hides the terminal. Snacks' own: Esc Esc leaves
+          # terminal mode (off in Claude's panel, claude.nix), q hides from normal mode.
+          terminal.win.keys = let
+            termNav = dir: desc:
+              lib.generators.mkLuaInline ''
+                {
+                  "<C-${dir}>",
+                  function(self)
+                    return self:is_floating() and "<C-${dir}>" or vim.schedule(function() vim.cmd.wincmd("${dir}") end)
+                  end,
+                  desc = "${desc}",
+                  expr = true,
+                  mode = "t",
+                }
+              '';
+          in {
+            nav_h = termNav "h" "Go to left window";
+            nav_j = termNav "j" "Go to lower window";
+            nav_k = termNav "k" "Go to upper window";
+            nav_l = termNav "l" "Go to right window";
+            hide_slash = lib.generators.mkLuaInline ''{ "<C-/>", "hide", desc = "Hide terminal", mode = "t" }'';
+            # Ctrl+/ arrives as <c-_> outside the kitty keyboard protocol
+            hide_underscore = lib.generators.mkLuaInline ''{ "<c-_>", "hide", desc = "which_key_ignore", mode = "t" }'';
+          };
         };
       };
 

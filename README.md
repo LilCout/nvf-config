@@ -43,7 +43,7 @@ modules/
   languages.nix   LSPs, formatters, Treesitter, debugger, LSP jumps
   editing.nix     Completion, snippets, pairs, comments, motions, text objects
   navigation.nix  Finder, explorer, buffer/window/tab and search keys, sessions
-  terminal.nix    toggleterm and its keys
+  terminal.nix    Snacks terminals and their keys
   git.nix         Git signs, diffs, lazygit, jjui, jj diff editor (hunk.nvim)
   claude.nix      claudecode.nvim
   snacks.nix      Snacks: picker, explorer, notifier, start screen, zen/zoom, scratch, rename file, git browse

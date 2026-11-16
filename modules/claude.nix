@@ -4,22 +4,16 @@
   pkgs,
   ...
 }: {
-  # claudecode.nvim enters terminal mode when its commands open or focus the panel (auto_insert), but not when the
-  # window is entered another way (window keys, mouse), which left it in normal mode. Its own API tells which buffer is
-  # the panel; before the plugin is loaded there is no panel.
+  # <leader>as in the file explorer adds the file under the cursor (or the picked files) to Claude's context.
+  # LazyVim's extra only maps it for neo-tree, oil and nvim-tree; claudecode.nvim also supports Snacks' explorer.
   vim.autocmds = [
     {
-      event = ["BufEnter" "WinEnter"];
-      pattern = ["term://*"];
-      desc = "Enter terminal mode in the Claude Code panel";
+      event = ["FileType"];
+      pattern = ["snacks_picker_list"];
+      desc = "Add files to Claude from the explorer";
       callback = lib.generators.mkLuaInline ''
         function(event)
-          if not package.loaded["claudecode"] or vim.api.nvim_get_mode().mode:sub(1, 1) ~= "n" then -- "nt" in a terminal
-            return
-          end
-          if event.buf == require("claudecode.terminal").get_active_terminal_bufnr() then
-            vim.cmd("startinsert")
-          end
+          vim.keymap.set("n", "<leader>as", "<cmd>ClaudeCodeTreeAdd<cr>", { buffer = event.buf, desc = "Add file to Claude" })
         end
       '';
     }
@@ -28,9 +22,14 @@
   vim.lazy.plugins."claudecode.nvim" = {
     package = pkgs.vimPlugins.claudecode-nvim;
     setupModule = "claudecode";
-    # Neovim's own terminal; with Snacks loaded (snacks.nix) it would pick Snacks', whose double Esc Claude Code uses
-    setupOpts.terminal.provider = "native";
-    cmd = ["ClaudeCode" "ClaudeCodeFocus" "ClaudeCodeAdd" "ClaudeCodeSend" "ClaudeCodeDiffAccept" "ClaudeCodeDiffDeny"];
+    # Snacks' terminal, as in LazyVim: entering the panel enters terminal mode, Shift+Enter inserts a newline, and the
+    # terminal keys from snacks.nix apply (<C-h/j/k/l>, <C-/> hides it). Snacks' double Esc (leave terminal mode) is
+    # turned off here: Claude Code uses Esc Esc to rewind.
+    setupOpts.terminal = {
+      provider = "snacks";
+      snacks_win_opts.keys.term_normal = false;
+    };
+    cmd = ["ClaudeCode" "ClaudeCodeFocus" "ClaudeCodeAdd" "ClaudeCodeSend" "ClaudeCodeTreeAdd" "ClaudeCodeDiffAccept" "ClaudeCodeDiffDeny"];
     keys = [
       {
         key = "<leader>ac";
