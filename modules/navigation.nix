@@ -1,5 +1,5 @@
 # Navigation: finder, file explorer, buffers, windows and tabs, with LazyVim's keys so its muscle memory carries over.
-# Pickers and the explorer are Snacks' (snacks.nix), as in LazyVim. ProjectRoot() is in default.nix.
+# Pickers and the explorer are Snacks' (snacks.nix), as in LazyVim. ProjectRoot() is in core.nix.
 let
   inherit (import ../lib/keys.nix) cmd lua picker;
 in

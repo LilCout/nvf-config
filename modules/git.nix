@@ -4,7 +4,8 @@ let
 in
   {pkgs, ...}: {
     vim = {
-      extraPackages = [pkgs.lazygit];
+      # On PATH so <leader>gj (jjui) works from `nix run` too, without the NixOS config's packages
+      extraPackages = [pkgs.lazygit pkgs.jjui];
 
       git = {
         enable = true;

@@ -18,7 +18,7 @@ let
         vim.cmd("ToggleTerm dir=" .. vim.fn.fnameescape(${dir}))
       end
     '';
-  # Opens or closes a terminal at the project root (ProjectRoot() in default.nix), like LazyVim's
+  # Opens or closes a terminal at the project root (ProjectRoot() in core.nix), like LazyVim's
   rootTerminal = key: terminal key "Terminal (root dir)" "ProjectRoot()";
 in
   {lib, ...}: {

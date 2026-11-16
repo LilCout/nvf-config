@@ -1,8 +1,9 @@
 # Language support: LSP, Treesitter, formatter, linters and debugger per language
 let
   inherit (import ../lib/keys.nix) cmd lua;
-  # Jumps to the next (1) or previous (-1) diagnostic, of one severity or (nil) any
-  diagnosticJump = count: severity: "function() vim.diagnostic.jump({ count = ${toString count}, severity = ${severity}, float = true }) end";
+  # Jumps to the next (1) or previous (-1) diagnostic of one severity and shows it in a float (on_jump: jump's `float`
+  # option is deprecated since Neovim 0.12)
+  diagnosticJump = count: severity: "function() vim.diagnostic.jump({ count = ${toString count}, severity = ${severity}, on_jump = function(_, bufnr) vim.diagnostic.open_float({ bufnr = bufnr, scope = 'cursor', focus = false }) end }) end";
 in
   {
     lib,
@@ -110,8 +111,9 @@ in
       };
 
       lsp.servers = {
-        # The NixOS config adds its own option completion (NixOS, Home Manager, flake-parts) through mkNeovim's `modules`
-        nixd.settings.nixd.formatting.command = ["alejandra"];
+        # The NixOS config adds its own option completion (NixOS, Home Manager, flake-parts) through mkNeovim's `modules`.
+        # Store path, so formatting also works from `nix run` without alejandra on PATH.
+        nixd.settings.nixd.formatting.command = [(lib.getExe pkgs.alejandra)];
 
         # nvf's Julia server command broke with LanguageServer.jl 6: it passes the depot path as a 4th argument
         # (now the error handler) and sets the removed `runlinter` field, so the server crashed on start.

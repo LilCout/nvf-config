@@ -38,4 +38,4 @@ see tracked files: run `jj status` after creating a file, before building.
 - nvf's Julia server command was broken with LanguageServer.jl 6 (extra positional argument, removed `runlinter`
   field), so `languages.nix` overrides `vim.lsp.servers.julia-languageserver.cmd`; drop the override once nvf fixes it.
 - hunk.nvim's `:DiffEditor` is jj's diff editor; the NixOS config sets `ui.diff-editor` to this package's `nvim`.
-- nixd's `formatting.command` is `alejandra`, which must be on PATH (the NixOS config installs it).
+- nixd's `formatting.command` is alejandra's store path, so it works without alejandra on PATH.

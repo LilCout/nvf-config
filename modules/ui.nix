@@ -1,4 +1,4 @@
-# Look: statusline, buffer tabs, notifications, start screen, and LazyVim's <leader>u… toggles
+# Look: statusline, buffer tabs, noice, todo comments, and LazyVim's <leader>u… toggles
 let
   inherit (import ../lib/keys.nix) cmd lua picker;
 in

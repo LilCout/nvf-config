@@ -1,5 +1,5 @@
-# Keymap constructors for the files in this folder (`import ./_keys.nix`); the leading _ keeps import-tree from loading it
-# as a module. All make normal-mode maps; add `// {mode = [...];}` for other modes.
+# Keymap constructors for the files in modules/ (`import ../lib/keys.nix`); kept outside modules/ because it isn't a
+# module. All make normal-mode maps; add `// {mode = [...];}` for other modes.
 rec {
   # Runs an Ex command
   cmd = key: desc: command: {
