@@ -1,2 +1,17 @@
 result
 result-*
+
+# Empty placeholders from Claude Code's sandbox
+/.bash_profile
+/.bashrc
+/.gitconfig
+/.gitmodules
+/.idea
+/.mcp.json
+/.profile
+/.ripgreprc
+/.vscode
+/.zprofile
+/.zshrc
+/.claude/
+/data/
