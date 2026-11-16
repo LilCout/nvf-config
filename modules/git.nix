@@ -1,10 +1,10 @@
-# Git and Jujutsu: signs, diffs, lazygit, jjui, jj's diff editor, with LazyVim's keys
+# Git and Jujutsu: signs, diffs, lazygit (Snacks), jjui, jj's diff editor, with LazyVim's keys
 let
   inherit (import ../lib/keys.nix) cmd lua picker;
 in
   {pkgs, ...}: {
     vim = {
-      # On PATH so <leader>gj (jjui) works from `nix run` too, without the NixOS config's packages
+      # On PATH so <leader>gg/gG (lazygit) and <leader>gj (jjui) work from `nix run` too, without the NixOS config's packages
       extraPackages = [pkgs.lazygit pkgs.jjui];
 
       git = {
@@ -42,8 +42,6 @@ in
         hunk-nvim.enable = true;
       };
       utility.diffview-nvim.enable = true;
-      terminal.toggleterm.lazygit.enable = true; # <leader>gg
-
       keymaps = [
         # Git and GitHub pickers (Snacks), as in LazyVim; the GitHub ones use the gh CLI (installed by the NixOS config)
         (picker "<leader>fg" "Find files (git-files)" "git_files" "")
@@ -65,18 +63,20 @@ in
         (lua "<leader>ghD" "Diff this ~" "function() require('gitsigns').diffthis('~') end")
         (lua "]H" "Last hunk" "function() require('gitsigns').nav_hunk('last') end")
         (lua "[H" "First hunk" "function() require('gitsigns').nav_hunk('first') end")
+        # Hunk text object, as in LazyVim: dih, vih, yih
+        {
+          key = "ih";
+          mode = ["o" "x"];
+          desc = "Select hunk";
+          action = ":<C-U>Gitsigns select_hunk<CR>";
+        }
 
-        (lua "<leader>gj" "jjui (repo root)" ''
-          function()
-            require("toggleterm.terminal").Terminal:new({
-              cmd = "jjui",
-              dir = ProjectRoot(),
-              direction = "float",
-              close_on_exit = true,
-              on_open = function() vim.cmd("startinsert!") end,
-            }):toggle()
-          end
-        '')
+        # Lazygit through Snacks, as in LazyVim: it gets the colorscheme's colors, and `e` on a file opens it in this
+        # Neovim instead of a second one inside the float. At the repo root, or at Neovim's current directory.
+        (lua "<leader>gg" "Lazygit (repo root)" "function() Snacks.lazygit({ cwd = ProjectRoot() }) end")
+        (lua "<leader>gG" "Lazygit (cwd)" "function() Snacks.lazygit() end")
+        # jjui in a floating Snacks terminal at the repo root; quitting it closes the float
+        (lua "<leader>gj" "jjui (repo root)" "function() Snacks.terminal('jjui', { cwd = ProjectRoot(), win = { position = 'float' } }) end")
       ];
 
       # :J runs jj commands
