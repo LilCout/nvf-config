@@ -138,8 +138,9 @@ in
         };
         clang.enable = true;
         docker.enable = true;
-        # Bundles all of Julia, since its language server is a Julia package
-        julia.enable = true;
+        # Bundles all of Julia, since its language server is a Julia package. x86_64 only: cache.nixos.org has no
+        # aarch64 Julia, and building it fails under nix-on-droid's proot (tar can't chmod a symlink in its source).
+        julia.enable = pkgs.stdenv.hostPlatform.isx86_64;
         tex.enable = true;
         typst.enable = true; # includes typst-preview.nvim (<leader>cp below)
         typescript.enable = true;
@@ -173,7 +174,7 @@ in
 
         # nvf's Julia server command broke with LanguageServer.jl 6: it passes the depot path as a 4th argument
         # (now the error handler) and sets the removed `runlinter` field, so the server crashed on start.
-        julia-languageserver.cmd = lib.mkForce (lib.generators.mkLuaInline ''
+        julia-languageserver.cmd = lib.mkIf pkgs.stdenv.hostPlatform.isx86_64 (lib.mkForce (lib.generators.mkLuaInline ''
           {
             '${lib.getExe (pkgs.julia.withPackages ["LanguageServer"])}',
             '--startup-file=no',
@@ -192,7 +193,7 @@ in
               run(server)
             ]],
           }
-        '');
+        ''));
       };
 
       treesitter = {
