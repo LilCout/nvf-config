@@ -6,16 +6,22 @@ let
   diagnosticJump = count: severity: "function() vim.diagnostic.jump({ count = ${toString count}, severity = ${severity}, on_jump = function(_, bufnr) vim.diagnostic.open_float({ bufnr = bufnr, scope = 'cursor', focus = false }) end }) end";
 in
   {
+    config,
     lib,
     pkgs,
     ...
-  }: {
+  }: let
+    # Julia bundled is all of Julia, since its language server is a Julia package. x86_64 only: cache.nixos.org has no
+    # aarch64 Julia, and building it fails under nix-on-droid's proot (tar can't chmod a symlink in its source).
+    julia = !config.full || pkgs.stdenv.hostPlatform.isx86_64;
+  in {
     vim = {
-      extraPackages = with pkgs; [
-        # rust-analyzer's root detection runs rustc and errors without it; projects' own toolchains come first via direnv
+      # rust-analyzer's root detection runs rustc and errors without it; projects' own toolchains come first via direnv.
+      # The light package finds rust-analyzer in such a toolchain too.
+      extraPackages = lib.optionals config.full (with pkgs; [
         rustc
         cargo
-      ];
+      ]);
 
       # LazyVim's diagnostics: the message at the end of the line (Neovim shows none by default since 0.11), most severe
       # first, and icons in the sign column
@@ -138,9 +144,7 @@ in
         };
         clang.enable = true;
         docker.enable = true;
-        # Bundles all of Julia, since its language server is a Julia package. x86_64 only: cache.nixos.org has no
-        # aarch64 Julia, and building it fails under nix-on-droid's proot (tar can't chmod a symlink in its source).
-        julia.enable = pkgs.stdenv.hostPlatform.isx86_64;
+        julia.enable = julia;
         tex.enable = true;
         typst.enable = true; # includes typst-preview.nvim (<leader>cp below)
         typescript.enable = true;
@@ -174,9 +178,14 @@ in
 
         # nvf's Julia server command broke with LanguageServer.jl 6: it passes the depot path as a 4th argument
         # (now the error handler) and sets the removed `runlinter` field, so the server crashed on start.
-        julia-languageserver.cmd = lib.mkIf pkgs.stdenv.hostPlatform.isx86_64 (lib.mkForce (lib.generators.mkLuaInline ''
+        # The light package's `julia` from PATH needs LanguageServer installed (written here, so Julia isn't evaluated).
+        julia-languageserver.cmd = lib.mkIf julia (lib.mkForce (lib.generators.mkLuaInline ''
           {
-            '${lib.getExe (pkgs.julia.withPackages ["LanguageServer"])}',
+            '${
+            if config.full
+            then lib.getExe (pkgs.julia.withPackages ["LanguageServer"])
+            else "julia"
+          }',
             '--startup-file=no',
             '--history-file=no',
             '-e',
@@ -206,6 +215,58 @@ in
           gitattributes
           diff
         ];
+      };
+
+      # Linters from PATH may be missing (light package, or a project without them): skip those instead of nvf's lint
+      # function erroring on every save. Otherwise the same: by filetype, and only with their config files if they need any.
+      diagnostics.nvim-lint.lint_function = lib.generators.mkLuaInline ''
+        function(buf)
+          local lint = require("lint")
+          for _, name in ipairs(lint.linters_by_ft[vim.bo[buf].filetype] or {}) do
+            local linter = lint.linters[name]
+            if type(linter) == "function" then
+              linter = linter()
+            end
+            linter.name = linter.name or name
+            local cmd = type(linter.cmd) == "function" and linter.cmd() or linter.cmd
+            local files = linter.required_files
+            local configured = files == nil
+              or vim.iter(files):any(function(file)
+                return vim.uv.fs_stat(vim.fs.joinpath(linter.cwd or vim.fn.getcwd(), file)) ~= nil
+              end)
+            if configured and vim.fn.executable(cmd) == 1 then
+              lint.lint(linter)
+            end
+          end
+        end
+      '';
+
+      # The adapters the light package's generic rewrite can't turn into a command on PATH
+      debugger.nvim-dap.adapters = lib.mkIf (!config.full) {
+        # codelldb's own install finds its liblldb (the bundled one is told where with --liblldb)
+        codelldb.executable.args = lib.mkForce ["--port" "\${port}"];
+        # nvf's adapter with the project's python3 (it needs debugpy installed) instead of a bundled python3.14
+        debugpy = lib.mkForce (lib.generators.mkLuaInline ''
+          function(cb, config)
+            if config.request == "attach" then
+              local port = (config.connect or config).port
+              local host = (config.connect or config).host or "127.0.0.1"
+              cb({
+                type = "server",
+                port = assert(port, "`connect.port` is required for a python `attach` configuration"),
+                host = host,
+                options = { source_filetype = "python" },
+              })
+            else
+              cb({
+                type = "executable",
+                command = "python3",
+                args = { "-m", "debugpy.adapter" },
+                options = { source_filetype = "python" },
+              })
+            end
+          end
+        '');
       };
 
       debugger.nvim-dap = {

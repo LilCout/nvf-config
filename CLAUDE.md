@@ -34,8 +34,15 @@ see tracked files: run `jj status` after creating a file, before building.
 
 ## Notes
 
+- Two packages: `default` (light) and `full`. Both enable every language. In the light one, `mkNeovim` evaluates the
+  config once, then `lib/tools-on-path.nix` force-sets every LSP/formatter/linter/DAP command from a store path to its
+  bare name on PATH. Values it can't rewrite (a non-`bin/` store path) warn and stay bundled: add a light-only
+  override under `config.full` in `languages.nix`, as for codelldb and debugpy. Check the light closure with
+  `nix path-info -rsSh` after adding a language.
+
 - nvf sets `timeoutlen` under its short name `tm`, so override `tm` (options.nix).
 - nvf's Julia server command was broken with LanguageServer.jl 6 (extra positional argument, removed `runlinter`
   field), so `languages.nix` overrides `vim.lsp.servers.julia-languageserver.cmd`; drop the override once nvf fixes it.
 - hunk.nvim's `:DiffEditor` is jj's diff editor; the NixOS config sets `ui.diff-editor` to this package's `nvim`.
-- nixd's `formatting.command` is alejandra's store path, so it works without alejandra on PATH.
+- nixd's `formatting.command` is alejandra's store path in the full package, so it works without alejandra on PATH
+  (the light package needs alejandra on PATH).

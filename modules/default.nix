@@ -22,4 +22,13 @@
     example = "/home/me/nixos-config";
     description = "Absolute path opened by <leader>fc and the dashboard's Config entry; both are left out when null.";
   };
+
+  # Set by lib.mkNeovim's `full`, which does the rest of the light build (commands found on PATH); on its own, false
+  # only changes the settings in languages.nix that the generic rewrite can't handle
+  options.full = lib.mkOption {
+    type = lib.types.bool;
+    default = true;
+    internal = true;
+    description = "Whether the language servers, formatters, linters and debuggers are bundled.";
+  };
 }
